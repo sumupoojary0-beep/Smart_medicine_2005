@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+httpx
+rapidfuzz
+paddlepaddle==3.2.2
+paddleocr==3.7.0
+torch
+torchvision
+transformers>=4.46,<5
+sentencepiece
+pillow
+numpy
+opencv-python-headless

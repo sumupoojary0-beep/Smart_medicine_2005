@@ -1,0 +1,147 @@
+/**
+ * Component: ActionPanel
+ *
+ * Description:
+ *   Sticky side panel (desktop) / bottom bar (mobile) containing all
+ *   primary and secondary actions for the medicine detail page.
+ *
+ * Responsibilities:
+ *   - Compare Medicine, Save Medicine, Share Medicine (with local state)
+ *   - Print Information, Download PDF, Report Incorrect Information
+ *   - All are UI-only placeholders
+ *
+ * Backend readiness:
+ *   - Save → POST /api/v1/users/me/saved-medicines/:id
+ *   - Report → POST /api/v1/medicines/:id/report
+ *   - PDF → GET /api/v1/medicines/:id/pdf
+ */
+
+import { useState } from 'react'
+import {
+  HiOutlineBookmark, HiBookmark,
+  HiOutlineShare, HiOutlinePrinter,
+  HiOutlineArrowsRightLeft,
+  HiOutlineDocumentArrowDown,
+  HiOutlineFlag,
+  HiOutlineBellAlert, HiCheckCircle,
+} from 'react-icons/hi2'
+import Button from '../../../components/ui/Button'
+import notificationService from '../../../services/notificationService'
+import useSavedMedicines from '../../../hooks/useSavedMedicines'
+
+// =====================================================
+// Action Panel
+// =====================================================
+function ActionPanel({ medicine = {} }) {
+  const [isShared,  setIsShared]  = useState(false)
+  const [notifyState, setNotifyState] = useState('idle') // 'idle' | 'loading' | 'subscribed' | 'error'
+
+  const { name = 'Medicine', pmbiCode } = medicine
+  const { isSaved: isMedicineSaved, toggle: toggleSaved, isToggling } = useSavedMedicines()
+  const isSaved = isMedicineSaved(pmbiCode)
+
+  function handleSave() {
+    if (pmbiCode) toggleSaved(pmbiCode)
+  }
+
+  async function handleShare() {
+    const url = window.location.href
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: name, url })
+        return
+      }
+      await navigator.clipboard.writeText(url)
+      setIsShared(true)
+      setTimeout(() => setIsShared(false), 2000)
+    } catch {
+      /* user cancelled the share sheet, or clipboard is blocked */
+    }
+  }
+
+  function handlePrint() {
+    window.print()
+  }
+
+  async function handleNotifyMe() {
+    if (!pmbiCode || notifyState === 'loading' || notifyState === 'subscribed') return
+    setNotifyState('loading')
+    try {
+      await notificationService.subscribeToStockAlert(pmbiCode)
+      setNotifyState('subscribed')
+    } catch {
+      setNotifyState('error')
+    }
+  }
+
+  return (
+    <aside
+      aria-label="Medicine actions"
+      className="bg-white rounded-2xl border border-slate-200/70 shadow-card p-5 flex flex-col gap-3"
+    >
+      <h2 className="text-sm font-bold text-slate-900 mb-1">Actions</h2>
+
+      {/* Primary actions */}
+      <Button
+        variant={isSaved ? 'secondary' : 'outline'}
+        fullWidth
+        leftIcon={isSaved ? <HiBookmark size={16} /> : <HiOutlineBookmark size={16} />}
+        onClick={handleSave}
+        disabled={isToggling || !pmbiCode}
+        aria-label={isSaved ? `Remove ${name} from saved` : `Save ${name}`}
+        aria-pressed={isSaved}
+      >
+        {isSaved ? 'Saved' : 'Save Medicine'}
+      </Button>
+
+      <Button
+        variant="outline"
+        fullWidth
+        leftIcon={<HiOutlineShare size={16} />}
+        onClick={handleShare}
+        aria-label={`Share ${name}`}
+      >
+        {isShared ? 'Copied link!' : 'Share Medicine'}
+      </Button>
+
+      <Button
+        variant={notifyState === 'subscribed' ? 'secondary' : 'outline'}
+        fullWidth
+        leftIcon={
+          notifyState === 'subscribed'
+            ? <HiCheckCircle size={16} />
+            : <HiOutlineBellAlert size={16} />
+        }
+        onClick={handleNotifyMe}
+        disabled={notifyState === 'loading' || notifyState === 'subscribed'}
+        aria-label={`Notify me when ${name} is back in stock`}
+      >
+        {notifyState === 'subscribed'
+          ? "We'll notify you"
+          : notifyState === 'loading'
+            ? 'Subscribing…'
+            : 'Notify Me If Out of Stock'}
+      </Button>
+      {notifyState === 'error' && (
+        <p className="text-xs text-danger-600 -mt-1">Couldn't subscribe. Try again.</p>
+      )}
+
+      {/* Divider */}
+      <hr className="border-slate-100" />
+
+      {/* Secondary actions */}
+      <button
+        type="button"
+        onClick={handlePrint}
+        aria-label={`Print information for ${name}`}
+        className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 text-left"
+      >
+        <HiOutlinePrinter size={15} className="text-slate-400" aria-hidden="true" />
+        Print Information
+      </button>
+
+    </aside>
+  )
+}
+
+export default ActionPanel

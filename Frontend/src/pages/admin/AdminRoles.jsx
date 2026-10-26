@@ -1,0 +1,106 @@
+/**
+ * Component: AdminRoles
+ *
+ * Real data: GET /admin/roles — the three roles the system has, live user
+ * counts, and a permission matrix that mirrors the backend's role guards.
+ * Read-only: roles are changed per person on the Users page.
+ */
+
+import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
+import { HiOutlineShieldCheck, HiOutlineUsers } from 'react-icons/hi2'
+import Badge from '../../components/ui/Badge'
+import { ROUTES } from '../../constants/routes'
+import adminManageService from '../../services/adminManageService'
+
+const ROLE_VARIANT = { USER: 'neutral', PHARMACY: 'secondary', ADMIN: 'danger' }
+
+function AdminRoles() {
+  const query = useQuery({
+    queryKey: ['admin-roles'],
+    queryFn: async () => (await adminManageService.getRoles()).data,
+  })
+  const roles = query.data?.roles ?? []
+  const permissions = query.data?.permissions ?? []
+
+  return (
+    <article aria-label="Roles and permissions" className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold text-primary-900 flex items-center gap-2">
+            <HiOutlineShieldCheck size={22} className="text-primary-600" aria-hidden="true" />
+            Roles &amp; Permissions
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            The system has three fixed roles. To change a person&apos;s role, use the Users page.
+          </p>
+        </div>
+        <Link to={ROUTES.ADMIN.USERS} className="inline-flex items-center gap-1.5 rounded-xl border border-primary-200 px-3 py-2 text-xs font-semibold text-primary-700 hover:bg-primary-50">
+          <HiOutlineUsers size={14} aria-hidden="true" /> Manage users
+        </Link>
+      </div>
+
+      {query.isLoading && <p className="py-10 text-center text-sm text-slate-400" role="status">Loading roles…</p>}
+      {query.isError && <p role="alert" className="py-10 text-center text-sm text-danger-700">{query.error?.response?.data?.detail ?? 'Could not load roles.'}</p>}
+
+      {query.data && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {roles.map((r) => (
+              <div key={r.role} className="p-5 rounded-2xl bg-white border border-slate-200/70 shadow-card">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="text-sm font-bold text-slate-900">{r.label}</p>
+                  <Badge variant={ROLE_VARIANT[r.role] ?? 'neutral'} size="sm">{r.role}</Badge>
+                </div>
+                <p className="text-xs text-slate-500 min-h-[48px]">{r.description}</p>
+                <div className="mt-3 flex items-end gap-4 border-t border-slate-100 pt-3">
+                  <div>
+                    <p className="text-2xl font-extrabold text-primary-800 leading-none">{r.total}</p>
+                    <p className="text-[11px] text-slate-400 mt-1">account{r.total === 1 ? '' : 's'}</p>
+                  </div>
+                  <p className="text-[11px] text-slate-500 pb-0.5">{r.active} active{r.blocked > 0 && <>, <span className="text-danger-700">{r.blocked} suspended</span></>}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200/70 shadow-card overflow-hidden">
+            <p className="text-sm font-bold text-slate-800 px-5 py-3 border-b border-slate-100">What each role can do</p>
+            <div className="overflow-x-auto">
+              <table className="table-base" aria-label="Permission matrix">
+                <thead>
+                  <tr>
+                    <th scope="col">Permission</th>
+                    {roles.map((r) => <th key={r.role} scope="col" className="text-center">{r.label}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {permissions.map((perm) => (
+                    <tr key={perm.name}>
+                      <td>
+                        <p className="text-xs font-medium text-slate-700">{perm.name}</p>
+                        {perm.note && <p className="text-[10px] text-slate-400">{perm.note}</p>}
+                      </td>
+                      {roles.map((r) => (
+                        <td key={r.role} className="text-center">
+                          {perm.roles.includes(r.role)
+                            ? <span className="text-success-600 text-base font-bold" aria-label="Allowed">✓</span>
+                            : <span className="text-slate-300 text-base" aria-label="Not allowed">—</span>}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="px-5 py-3 text-[11px] text-slate-400 border-t border-slate-100">
+              This table is generated by the server from the rules it enforces on every request. It is read-only because roles are built into the system.
+            </p>
+          </div>
+        </>
+      )}
+    </article>
+  )
+}
+
+export default AdminRoles

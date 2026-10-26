@@ -1,0 +1,256 @@
+/**
+ * Kendra Service
+ *
+ * Handles:
+ * - Nearby Kendra location search
+ * - Medicine-specific WSM-ranked Kendra search
+ * - Kendra details
+ * - Stock restocking
+ * - FIFO billing
+ * - Inventory dashboard and bill history
+ */
+
+import axiosClient from '../config/axiosClient'
+
+
+// =====================================================
+// Default WSM ranking preferences
+// =====================================================
+
+export const DEFAULT_RANKING_WEIGHTS = {
+  distance: 0.40,
+  price: 0.25,
+  quantity: 0.25,
+  freshness: 0.10,
+  trust: 0,
+}
+
+
+// =====================================================
+// Validate frontend weights before sending request
+// =====================================================
+
+function validateWeights(weights) {
+  const values = Object.values(weights)
+
+  const allValid = values.every(
+    value =>
+      typeof value === 'number' &&
+      value >= 0 &&
+      value <= 1,
+  )
+
+  if (!allValid) {
+    throw new Error(
+      'Every ranking weight must be between 0 and 1.',
+    )
+  }
+
+  const total = values.reduce(
+    (sum, value) => sum + value,
+    0,
+  )
+
+  if (Math.abs(total - 1) > 0.001) {
+    throw new Error(
+      `Ranking weights must add up to 1. Current total: ${total.toFixed(2)}`,
+    )
+  }
+
+  return weights
+}
+
+
+// =====================================================
+// Kendra API service
+// =====================================================
+
+const kendraService = {
+  /**
+   * Find all active Kendras near the user.
+   * Results are ordered by distance.
+   */
+  findNearby: (
+    lat,
+    lng,
+    radiusKm = 5,
+  ) =>
+    axiosClient.get('/kendras/nearby', {
+      params: {
+        lat,
+        lng,
+        radius_km: radiusKm,
+      },
+    }),
+
+  /**
+   * Find Kendras stocking one medicine.
+   *
+   * Results are ranked using the Weighted Sum Model.
+   */
+  findMedicineNearby: (
+    pmbiCode,
+    lat,
+    lng,
+    radiusKm = 5,
+    onlyInStock = true,
+    weights = null, // null = server applies the user's saved preferences (set in Profile)
+  ) => {
+    const validWeights = weights ? validateWeights(weights) : null
+
+    return axiosClient.get(
+      `/kendras/medicine/${encodeURIComponent(pmbiCode)}/nearby`,
+      {
+        params: {
+          lat,
+          lng,
+          radius_km: radiusKm,
+          only_in_stock: onlyInStock,
+
+          ...(validWeights && {
+            distance_weight: validWeights.distance,
+            price_weight: validWeights.price,
+            quantity_weight: validWeights.quantity,
+            freshness_weight: validWeights.freshness,
+            trust_weight: validWeights.trust,
+          }),
+        },
+      },
+    )
+  },
+
+  /**
+   * Get complete Kendra information.
+   */
+  getById: kendraId =>
+    axiosClient.get(
+      `/kendras/${encodeURIComponent(kendraId)}`,
+    ),
+
+  /**
+   * Add a new stock batch.
+   */
+  restock: (
+    kendraId,
+    data,
+  ) =>
+    axiosClient.post(
+      `/kendras/${encodeURIComponent(kendraId)}/restock`,
+      data,
+    ),
+
+  /** Correct a batch (quantity, selling_price, expiry_date, manufacturer) + required reason. */
+  updateBatch: (kendraId, pmbiCode, batchNumber, data) =>
+    axiosClient.patch(
+      `/kendras/${encodeURIComponent(kendraId)}/stock/${encodeURIComponent(pmbiCode)}/batches/${encodeURIComponent(batchNumber)}`,
+      data,
+    ),
+
+  /** Remove a batch (damaged, recalled, entered by mistake) + required reason. */
+  removeBatch: (kendraId, pmbiCode, batchNumber, reason) =>
+    axiosClient.delete(
+      `/kendras/${encodeURIComponent(kendraId)}/stock/${encodeURIComponent(pmbiCode)}/batches/${encodeURIComponent(batchNumber)}`,
+      { params: { reason } },
+    ),
+
+  /**
+   * Generate a bill and deduct stock.
+   */
+  generateBill: (
+    kendraId,
+    data,
+  ) =>
+    axiosClient.post(
+      `/kendras/${encodeURIComponent(kendraId)}/bill`,
+      data,
+    ),
+
+  /**
+   * Inventory dashboard: stock counts, low / out of stock,
+   * near-expiry and expired batches, sales and recent activity.
+   */
+  getInventoryDashboard: kendraId =>
+    axiosClient.get(
+      `/kendras/${encodeURIComponent(kendraId)}/inventory/dashboard`,
+    ),
+
+  /**
+   * Bill history, newest first.
+   * params: { page, page_size, search, payment_method, date_from, date_to }
+   */
+  getBills: (
+    kendraId,
+    params,
+  ) =>
+    axiosClient.get(
+      `/kendras/${encodeURIComponent(kendraId)}/bills`,
+      { params },
+    ),
+
+  /**
+   * One bill with its line items and the batches used.
+   */
+  getBill: (
+    kendraId,
+    billId,
+  ) =>
+    axiosClient.get(
+      `/kendras/${encodeURIComponent(kendraId)}/bills/${encodeURIComponent(billId)}`,
+    ),
+
+  /**
+   * Shop details printed on invoices (GSTIN, drug licence no.)
+   * plus the last bill number used.
+   */
+  getBillingDetails: kendraId =>
+    axiosClient.get(
+      `/kendras/${encodeURIComponent(kendraId)}/billing-details`,
+    ),
+
+  /**
+   * Save { gstin, drug_license_no, next_bill_number? }.
+   */
+  updateBillingDetails: (
+    kendraId,
+    data,
+  ) =>
+    axiosClient.put(
+      `/kendras/${encodeURIComponent(kendraId)}/billing-details`,
+      data,
+    ),
+
+  /**
+   * Read a supplier bill (photo / PDF / Excel / CSV) and return the rows it
+   * contains, matched to the catalogue. Saves nothing.
+   */
+  previewStockImport: (
+    kendraId,
+    file,
+  ) => {
+    const form = new FormData()
+    form.append('file', file)
+    return axiosClient.post(
+      `/kendras/${encodeURIComponent(kendraId)}/stock-import/preview`,
+      form,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 300000,
+      },
+    )
+  },
+
+  /**
+   * Add the reviewed rows of a supplier bill to stock.
+   */
+  confirmStockImport: (
+    kendraId,
+    data,
+  ) =>
+    axiosClient.post(
+      `/kendras/${encodeURIComponent(kendraId)}/stock-import/confirm`,
+      data,
+    ),
+}
+
+
+export default kendraService
