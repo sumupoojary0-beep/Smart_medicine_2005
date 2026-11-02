@@ -15,6 +15,21 @@ from paddleocr import PaddleOCR
 _ocr_instance = None
 _ocr_lock = Lock()
 
+# -----------------------------------------------------
+# Speed switches. Defaults keep the current behaviour exactly;
+# change them via environment variables and measure with
+# scripts/benchmark_ocr.py before keeping a change.
+#
+#   OCR_ENHANCED_PASS=0   skip the second (enlarged) OCR pass
+#   OCR_UPSCALE=1.5       enlargement factor of the second pass (default 2.0)
+#   OCR_DET_MODEL / OCR_REC_MODEL
+#       e.g. PP-OCRv5_mobile_det / PP-OCRv5_mobile_rec (smaller, faster)
+# -----------------------------------------------------
+ENHANCED_PASS = os.getenv("OCR_ENHANCED_PASS", "1") != "0"
+UPSCALE = float(os.getenv("OCR_UPSCALE", "2.0"))
+DET_MODEL = os.getenv("OCR_DET_MODEL") or None
+REC_MODEL = os.getenv("OCR_REC_MODEL") or None
+
 
 # =====================================================
 # Load PaddleOCR
@@ -28,13 +43,18 @@ def get_ocr_engine() -> PaddleOCR:
     if _ocr_instance is None:
         with _ocr_lock:
             if _ocr_instance is None:
-                _ocr_instance = PaddleOCR(
+                options: dict[str, Any] = dict(
                     lang="en",
                     device="cpu",
                     use_doc_orientation_classify=False,
                     use_doc_unwarping=False,
                     use_textline_orientation=False,
                 )
+                if DET_MODEL:
+                    options["text_detection_model_name"] = DET_MODEL
+                if REC_MODEL:
+                    options["text_recognition_model_name"] = REC_MODEL
+                _ocr_instance = PaddleOCR(**options)
 
     return _ocr_instance
 
@@ -53,7 +73,7 @@ def create_enhanced_image(
     coordinates in the original uploaded image.
     """
 
-    scale = 2.0
+    scale = UPSCALE
 
     with Image.open(image_path) as source:
         image = ImageOps.exif_transpose(source)
@@ -102,10 +122,12 @@ def create_enhanced_image(
         temporary_path = temporary_file.name
         temporary_file.close()
 
+        # Same pixels as before; compress_level=1 is much faster to
+        # write than optimize=True and the file is deleted right after.
         grayscale.save(
             temporary_path,
             format="PNG",
-            optimize=True,
+            compress_level=1,
         )
 
     return temporary_path, scale
@@ -433,23 +455,29 @@ def extract_text_from_image(
             source_name="original",
         )
 
-        enhanced_path, enhanced_scale = (
-            create_enhanced_image(str(file_path))
-        )
+        if ENHANCED_PASS:
+            enhanced_path, enhanced_scale = (
+                create_enhanced_image(str(file_path))
+            )
 
-        enhanced_predictions = ocr.predict(
-            enhanced_path
-        )
-        enhanced_lines = extract_prediction_lines(
-            predictions=enhanced_predictions,
-            scale=enhanced_scale,
-            source_name="enhanced",
-        )
+            enhanced_predictions = ocr.predict(
+                enhanced_path
+            )
+            enhanced_lines = extract_prediction_lines(
+                predictions=enhanced_predictions,
+                scale=enhanced_scale,
+                source_name="enhanced",
+            )
 
-        detected_lines = merge_detected_lines(
-            original_lines,
-            enhanced_lines,
-        )
+            detected_lines = merge_detected_lines(
+                original_lines,
+                enhanced_lines,
+            )
+        else:
+            detected_lines = merge_detected_lines(
+                original_lines,
+                [],
+            )
 
     finally:
         if (
@@ -494,3 +522,9 @@ def extract_text_from_image(
         "enhanced_line_count": enhanced_line_count,
         "average_confidence": average_confidence,
     }
+
+
+
+def warm_up_ocr() -> None:
+    """Load the model now so the first real prescription is not slow."""
+    get_ocr_engine()

@@ -17,6 +17,7 @@
  *   - Leaflet CSS imported in index.css
  */
 
+import { useEffect, useRef } from 'react'
 import {
   MapContainer, TileLayer, Marker, Popup, Circle, useMap,
 } from 'react-leaflet'
@@ -62,6 +63,32 @@ const selectedIcon = new L.DivIcon({
   popupAnchor: [0, -20],
 })
 
+// ── Re-centre the map when the user's location arrives or changes ────────
+// (MapContainer only reads its `center` prop once, when it first mounts.)
+function RecenterOnChange({ center, zoom }) {
+  const map = useMap()
+  const [lat, lng] = center
+  useEffect(() => {
+    map.setView([lat, lng], zoom)
+  }, [map, lat, lng, zoom])
+  return null
+}
+
+// ── Fly to a Kendra and open its popup when "Map" is pressed on a card ────
+function FocusOnKendra({ focus, pharmacies, markerRefs }) {
+  const map = useMap()
+  useEffect(() => {
+    if (!focus) return undefined
+    const target = pharmacies.find((p) => p.id === focus.id)
+    if (!target || target.latitude == null || target.longitude == null) return undefined
+    map.flyTo([target.latitude, target.longitude], 16, { duration: 0.8 })
+    const timer = setTimeout(() => markerRefs.current[focus.id]?.openPopup(), 900)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus, map])
+  return null
+}
+
 // ── Reset view button (inside the map) ────────────────────────────────────
 function ResetViewControl({ center, zoom }) {
   const map = useMap()
@@ -81,14 +108,16 @@ function ResetViewControl({ center, zoom }) {
 // =======================================================
 // Interactive Map Section
 // =======================================================
-function InteractiveMapSection({ selectedPharmacyId, onSelectPharmacy, pharmacies = [], center }) {
+function InteractiveMapSection({ selectedPharmacyId, onSelectPharmacy, pharmacies = [], center, focus }) {
+  const markerRefs = useRef({})
   const CENTER = center ?? [12.3052, 76.6551] // Mysuru fallback, matches useGeolocation's default
+  const hasUserLocation = Boolean(center)
   const ZOOM   = 13
 
   const markers = pharmacies.filter((p) => p.latitude != null && p.longitude != null)
 
   return (
-    <section aria-labelledby="map-heading">
+    <section id="interactive-map-section" aria-labelledby="map-heading" className="scroll-mt-20">
 
       {/* =======================================================
           Interactive Map
@@ -118,22 +147,30 @@ function InteractiveMapSection({ selectedPharmacyId, onSelectPharmacy, pharmacie
               attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             />
 
-            {/* User location circle */}
-            <Circle
-              center={CENTER}
-              radius={200}
-              pathOptions={{ color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.2 }}
-            />
-            <Marker position={CENTER}>
-              <Popup>
-                <div className="text-xs font-semibold">📍 Your Location</div>
-              </Popup>
-            </Marker>
+            <RecenterOnChange center={CENTER} zoom={ZOOM} />
+            <FocusOnKendra focus={focus} pharmacies={markers} markerRefs={markerRefs} />
+
+            {/* User location: only drawn once a real position is known */}
+            {hasUserLocation && (
+              <>
+                <Circle
+                  center={CENTER}
+                  radius={200}
+                  pathOptions={{ color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.2 }}
+                />
+                <Marker position={CENTER}>
+                  <Popup>
+                    <div className="text-xs font-semibold">📍 Your Location</div>
+                  </Popup>
+                </Marker>
+              </>
+            )}
 
             {/* Pharmacy markers — real Kendras from the parent's GET /kendras/nearby */}
             {markers.map((p) => (
               <Marker
                 key={p.id}
+                ref={(m) => { if (m) markerRefs.current[p.id] = m }}
                 position={[p.latitude, p.longitude]}
                 icon={
                   p.id === selectedPharmacyId
@@ -148,10 +185,7 @@ function InteractiveMapSection({ selectedPharmacyId, onSelectPharmacy, pharmacie
                   <div className="text-xs font-semibold">{p.name}</div>
                   <div className="text-[11px] text-slate-500">{p.distance}</div>
                   <div className="text-[11px]">
-                    <span className={p.isOpen ? 'text-success-600' : 'text-danger-600'}>
-                      {p.isOpen ? '● Open' : '● Closed'}
-                    </span>
-                    {p.isJanAushadhi && <span className="ml-2 text-info-600">Jan Aushadhi</span>}
+                    {p.isJanAushadhi && <span className="text-info-600">Jan Aushadhi</span>}
                   </div>
                 </Popup>
               </Marker>

@@ -9,7 +9,7 @@
 import { HiOutlineLightBulb, HiOutlineCheckCircle } from 'react-icons/hi2'
 
 const TIPS = [
-  'Check pharmacy opening hours before visiting — Jan Aushadhi Kendras typically operate from 8 AM to 9 PM.',
+  'Opening hours differ from Kendra to Kendra and are not shown here, so call before you go.',
   'Confirm medicine availability by calling the pharmacy before making the trip, especially for less common medicines.',
   'Always carry your original prescription when purchasing prescription (Rx) medicines.',
   'Compare the generic medicine name with your prescription to verify it is the correct alternative.',

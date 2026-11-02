@@ -29,6 +29,20 @@ function parseComposition(text) {
     })
 }
 
+// "Aceclofenac — 100 mg per tablet; Paracetamol — 325 mg per tablet"
+//   -> [{ name: 'Aceclofenac', amount: '100 mg per tablet' }, ...]
+function parseCompositionText(text) {
+  if (!text || typeof text !== 'string') return []
+  return text
+    .split(';')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const [name, ...rest] = part.split(/\s+[—–-]\s+/)
+      return { name: name.trim(), amount: rest.join(' — ').trim() || '—' }
+    })
+}
+
 function Row({ label, value }) {
   return (
     <div className="flex justify-between gap-4 px-4 py-2.5 text-sm">
@@ -41,6 +55,11 @@ function Row({ label, value }) {
 function MedicineInfoTabs({ medicine, generic }) {
   const [activeTab, setActiveTab] = useState('overview')
 
+  // Prefer the official per-unit text; fall back to the older short composition.
+  const official = useMemo(
+    () => parseCompositionText(medicine?.compositionText),
+    [medicine?.compositionText],
+  )
   const ingredients = useMemo(
     () => parseComposition(medicine?.composition),
     [medicine?.composition],
@@ -63,7 +82,31 @@ function MedicineInfoTabs({ medicine, generic }) {
     {
       id: 'composition',
       label: 'Composition',
-      content: ingredients.length === 0 ? (
+      content: official.length > 0 ? (
+        <div className="space-y-3">
+          <div className="rounded-xl bg-slate-50 border border-slate-200 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-100">
+                <tr>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Active ingredient</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {official.map((ing, i) => (
+                  <tr key={`${ing.name}-${i}`}>
+                    <td className="px-4 py-2.5 font-medium text-slate-800">{ing.name}</td>
+                    <td className="px-4 py-2.5 text-slate-600">{ing.amount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-slate-400">
+            Source: official Jan Aushadhi (PMBI) product list. Always check the pack as well.
+          </p>
+        </div>
+      ) : ingredients.length === 0 ? (
         <p className="text-sm text-slate-500">
           Composition is not available for this medicine. Please check the pack or ask your pharmacist.
         </p>
@@ -130,7 +173,7 @@ function MedicineInfoTabs({ medicine, generic }) {
         </div>
       ),
     },
-  ], [medicine, generic, ingredients])
+  ], [medicine, generic, ingredients, official])
 
   const handleKeyDown = useCallback((e, i) => {
     if (e.key === 'ArrowRight') setActiveTab(TABS[(i + 1) % TABS.length].id)

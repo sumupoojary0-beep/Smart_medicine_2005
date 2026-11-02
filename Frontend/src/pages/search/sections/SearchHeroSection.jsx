@@ -67,10 +67,14 @@ function SearchHeroSection({ query = '', onQueryChange, onSearch, suggestions = 
   const handleVoiceResult = useCallback((text) => { onQueryChange?.(text); onSearch?.(text) }, [onQueryChange, onSearch])
 
   return (
-    <section aria-labelledby="search-hero-title" className="relative overflow-hidden rounded-3xl bg-primary-800 text-white">
-      <div className="absolute inset-0 bg-blister" aria-hidden="true" />
+    <section aria-labelledby="search-hero-title" className="relative rounded-3xl bg-primary-800 text-white">
+      {/* The pattern is clipped to the rounded card here, so the section itself
+          can stay un-clipped and the suggestions list may hang below it. */}
+      <div className="absolute inset-0 overflow-hidden rounded-3xl" aria-hidden="true">
+        <div className="absolute inset-0 bg-blister" />
+      </div>
 
-      <div className="relative grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] gap-10 p-6 sm:p-10 lg:p-12 items-center">
+      <div className="relative z-10 grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] gap-10 p-6 sm:p-10 lg:p-12 items-center">
         {/* Left: words + search */}
         <div>
           <h1 id="search-hero-title" className="font-display text-[2.4rem] sm:text-[3.1rem] leading-[1.04] font-extrabold text-white [text-wrap:balance]">

@@ -63,7 +63,7 @@ function NavigationPreview({ pharmacy = {} }) {
           </div>
           <div className="flex flex-col items-center p-4 rounded-xl bg-primary-50 border border-primary-100 text-center">
             <HiOutlineTruck size={20} className="text-primary-600 mb-1" aria-hidden="true" />
-            <p className="text-[10px] text-primary-500 uppercase tracking-wider">Travel Time</p>
+            <p className="text-[10px] text-primary-500 uppercase tracking-wider">Approx. Travel Time</p>
             <p className="text-xl font-extrabold text-primary-700">
               {travelTime}
             </p>

@@ -155,7 +155,7 @@ function SearchSuggestionsSection({ query = '', onSelect, onClose }) {
 
       {/* Scrollable suggestion list */}
       <ul
-        className="max-h-64 overflow-y-auto divide-y divide-slate-50"
+        className="max-h-[32rem] overflow-y-auto divide-y divide-slate-50"
         aria-live="polite"
         aria-atomic="false"
       >

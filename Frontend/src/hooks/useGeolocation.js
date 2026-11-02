@@ -10,16 +10,21 @@ import { useState, useEffect } from 'react'
 
 const FALLBACK_LOCATION = { lat: 12.3052, lng: 76.6551 } // Mysuru city center
 
+const isSupported = () =>
+  typeof navigator !== 'undefined' && 'geolocation' in navigator
+
 export function useGeolocation() {
-  const [location, setLocation] = useState(null)
-  const [status, setStatus] = useState('locating') // 'locating' | 'granted' | 'fallback'
+  // When the browser has no geolocation, start directly in the fallback
+  // state (no setState needed inside the effect).
+  const [location, setLocation] = useState(() =>
+    isSupported() ? null : FALLBACK_LOCATION,
+  )
+  const [status, setStatus] = useState(() =>
+    isSupported() ? 'locating' : 'fallback',
+  ) // 'locating' | 'granted' | 'fallback'
 
   useEffect(() => {
-    if (!('geolocation' in navigator)) {
-      setLocation(FALLBACK_LOCATION)
-      setStatus('fallback')
-      return
-    }
+    if (!isSupported()) return
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -30,7 +35,7 @@ export function useGeolocation() {
         setLocation(FALLBACK_LOCATION)
         setStatus('fallback')
       },
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
     )
   }, [])
 

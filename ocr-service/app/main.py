@@ -43,9 +43,8 @@ from app.medicine_matcher import (
 )
 
 from app.ocr_engine import (
-
     extract_text_from_image,
-
+    warm_up_ocr,
 )
 
 
@@ -527,6 +526,14 @@ def merge_medicine_matching(
 
 # =====================================================
 
+
+
+@app.on_event("startup")
+async def load_models_at_startup() -> None:
+    """Load PaddleOCR once at start so the first upload is not slow.
+    Set OCR_WARMUP=0 to skip (for example while developing)."""
+    if os.getenv("OCR_WARMUP", "1") != "0":
+        await asyncio.to_thread(warm_up_ocr)
 
 
 @app.get("/")

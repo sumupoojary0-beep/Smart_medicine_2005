@@ -20,7 +20,7 @@ function Fact({ label, value }) {
 
 function MedicineOverviewSection({ medicine = {} }) {
   const {
-    name = 'Medicine', genericName = '', composition = '', category = '',
+    name = 'Medicine', genericName = '', composition = '', compositionText = '', category = '',
     manufacturer = '', type = '', strength = '', price = 0, mrp = 0,
   } = medicine
 
@@ -44,6 +44,12 @@ function MedicineOverviewSection({ medicine = {} }) {
           </h1>
           {composition && <p className="mt-2 text-lg text-white/85">{composition}</p>}
           {genericName && genericName !== name && <p className="mt-0.5 text-sm text-white/60">{genericName}</p>}
+          {compositionText && (
+            <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-white/80">
+              <span className="font-semibold text-accent-300">Official composition: </span>
+              {compositionText}
+            </p>
+          )}
 
           <dl className="mt-6 flex flex-wrap gap-x-8 gap-y-3">
             <Fact label="Strength" value={strength} />

@@ -12,16 +12,14 @@
 
 import { useQuery } from '@tanstack/react-query'
 import {
-  HiOutlineMapPin, HiOutlinePhone, HiOutlineClock,
-  HiOutlineStar, HiOutlineBanknotes,
+  HiOutlineMapPin, HiOutlinePhone,
   HiOutlineCheckCircle, HiOutlineXCircle, HiOutlineExclamationCircle,
 } from 'react-icons/hi2'
-import { MdLocalPharmacy, MdAccessible, MdDirectionsCar } from 'react-icons/md'
+import { MdLocalPharmacy } from 'react-icons/md'
 import Badge from '../../../components/ui/Badge'
 import kendraService from '../../../services/kendraService'
 import medicineService from '../../../services/medicineService'
 
-const PAYMENT_METHODS = ['Cash', 'UPI', 'Debit Card', 'Jan Aushadhi Scheme']
 
 const STATUS_ICON = {
   available:   <HiOutlineCheckCircle   size={15} className="text-success-500" aria-hidden="true" />,
@@ -86,14 +84,7 @@ function PharmacyDetailsPanel({ pharmacyId }) {
     name: k.name,
     address: k.address,
     phone: k.phone,
-    hours: 'Contact for hours', // not tracked by the backend yet
-    rating: k.rating ?? 0,
-    ratingCount: 0,
-    isOpen: true,
     isJanAushadhi: true,
-    waitingTime: '~10 minutes', // not tracked by the backend yet
-    hasParking: true,
-    isAccessible: true,
   }
 
   const availabilityRows = (k.stock ?? []).slice(0, 8).map((item) => {
@@ -116,15 +107,6 @@ function PharmacyDetailsPanel({ pharmacyId }) {
          ======================================================= */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
 
-        {/* Image placeholder */}
-        <div
-          aria-hidden="true"
-          className="h-32 bg-gradient-to-br from-secondary-50 to-primary-50 flex items-center justify-center border-b border-slate-100"
-        >
-          <MdLocalPharmacy size={56} className="text-secondary-200" />
-          <span className="absolute text-[10px] text-slate-300 mt-16">Pharmacy image placeholder</span>
-        </div>
-
         <div className="p-5 space-y-4">
           {/* Name + badges */}
           <div>
@@ -132,14 +114,7 @@ function PharmacyDetailsPanel({ pharmacyId }) {
               {pharmacy.name}
             </h2>
             <div className="flex flex-wrap gap-2">
-              <Badge variant={pharmacy.isOpen ? 'success' : 'danger'} dot size="sm">
-                {pharmacy.isOpen ? 'Open Now' : 'Closed'}
-              </Badge>
               {pharmacy.isJanAushadhi && <Badge variant="info" size="sm">Jan Aushadhi</Badge>}
-              <Badge variant="neutral" size="sm">
-                <HiOutlineStar size={10} className="text-warning-400" aria-hidden="true" />
-                {pharmacy.rating} ({pharmacy.ratingCount})
-              </Badge>
             </div>
           </div>
 
@@ -155,34 +130,6 @@ function PharmacyDetailsPanel({ pharmacyId }) {
                 {pharmacy.phone}
               </a>
             </div>
-            <div className="flex items-center gap-2">
-              <HiOutlineClock size={13} className="text-secondary-500 shrink-0" aria-hidden="true" />
-              {pharmacy.hours}
-            </div>
-            <div className="flex items-center gap-2">
-              <HiOutlineClock size={13} className="text-warning-500 shrink-0" aria-hidden="true" />
-              Estimated wait: {pharmacy.waitingTime}
-            </div>
-          </div>
-
-          {/* Amenities */}
-          <div className="flex flex-wrap gap-2">
-            {PAYMENT_METHODS.map((m) => (
-              <span key={m} className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 flex items-center gap-1">
-                <HiOutlineBanknotes size={10} aria-hidden="true" />
-                {m}
-              </span>
-            ))}
-            {pharmacy.hasParking && (
-              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 flex items-center gap-1">
-                <MdDirectionsCar size={10} aria-hidden="true" />Parking
-              </span>
-            )}
-            {pharmacy.isAccessible && (
-              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary-50 text-primary-600 flex items-center gap-1">
-                <MdAccessible size={10} aria-hidden="true" />Accessible
-              </span>
-            )}
           </div>
 
           {/* Medicine availability table */}

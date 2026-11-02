@@ -749,7 +749,8 @@ def looks_like_fallback_medicine_line(
 
 
 
-    if digit_count >= 6:
+    if digit_count >= 6 and not extract_strengths(original):
+
 
         return False
 
@@ -1296,6 +1297,266 @@ def merge_spatial_ocr_fragments(
 
 
     return merged_items
+# PASTE 1: put this whole block in ocr-service/app/medicine_matcher.py
+# directly ABOVE the line:  def get_medication_region(
+
+FORM_START_RE = re.compile(
+    r"^\s*(tablets?|tabs?|capsules?|caps?|syrup|suspension|injection|"
+    r"cream|ointment|gel|drops?|i\.?\s?p\.?|b\.?\s?p\.?|\(?\d)",
+    re.IGNORECASE,
+)
+
+
+def _is_form_and_strength_only(value: str) -> bool:
+    """True when a line holds only dosage form words and strengths,
+    with no medicine name of its own."""
+    cleaned = re.sub(
+        r"\b(tablets?|tabs?|capsules?|caps?|syrup|suspension|injection|"
+        r"cream|ointment|gel|drops?|each|film|coated|uncoated|sustained|"
+        r"extended|release|i\.?p|b\.?p|mg|mcg|ml|g|iu|units?)\b",
+        " ",
+        value.lower(),
+    )
+    words = re.findall(r"[a-z]{3,}", cleaned)
+    return not words
+
+
+def merge_stacked_continuation_lines(
+    items: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Join a medicine-name line with the strength line printed directly
+    below it, e.g.
+        Ibuprofen and Paracetamol
+        Tablets I.P. (400 mg/325 mg)
+    becomes one line so the strength is not lost.
+    """
+    boxed = [item for item in items if _valid_box(item.get("box"))]
+    others = [item for item in items if not _valid_box(item.get("box"))]
+
+    boxed.sort(key=lambda item: (item["box"][1], item["box"][0]))
+
+    result: list[dict[str, Any]] = []
+    index = 0
+
+    while index < len(boxed):
+        current = boxed[index]
+
+        if index + 1 < len(boxed):
+            nxt = boxed[index + 1]
+            a_text = str(current.get("text", "")).strip()
+            b_text = str(nxt.get("text", "")).strip()
+            a_box = current["box"]
+            b_box = nxt["box"]
+
+            a_height = max(a_box[3] - a_box[1], 1)
+            b_height = max(b_box[3] - b_box[1], 1)
+            gap = b_box[1] - a_box[3]
+            overlap = min(a_box[2], b_box[2]) - max(a_box[0], b_box[0])
+            narrower = max(min(a_box[2] - a_box[0], b_box[2] - b_box[0]), 1)
+
+            stacked = (
+                -0.5 * a_height <= gap <= 1.2 * max(a_height, b_height)
+                and overlap >= 0.3 * narrower
+            )
+
+            if (
+                stacked
+                and a_text
+                and not extract_strengths(a_text)
+                and extract_strengths(b_text)
+                and FORM_START_RE.match(b_text)
+                and _is_form_and_strength_only(b_text)
+                and not is_non_medicine_line(a_text)
+            ):
+                confidences = [
+                    float(current.get("confidence", 0) or 0),
+                    float(nxt.get("confidence", 0) or 0),
+                ]
+                result.append(
+                    {
+                        **current,
+                        "text": _normalize_prescription_units(
+                            f"{a_text} {b_text}"
+                        ),
+                        "source_ocr_text": f"{a_text} | {b_text}",
+                        "confidence": round(min(confidences), 4),
+                        "box": [
+                            min(a_box[0], b_box[0]),
+                            min(a_box[1], b_box[1]),
+                            max(a_box[2], b_box[2]),
+                            max(a_box[3], b_box[3]),
+                        ],
+                        "merged_fragment_count": (
+                            int(current.get("merged_fragment_count", 1))
+                            + int(nxt.get("merged_fragment_count", 1))
+                        ),
+                    }
+                )
+                index += 2
+                continue
+
+        result.append(current)
+        index += 1
+
+    result.extend(others)
+    return result
+# PASTE 3: put this whole block in ocr-service/app/medicine_matcher.py
+# directly ABOVE the line:  def get_medication_region(
+# (put it right after the block from PASTE 1)
+
+NOISE_LINE_RE = re.compile(
+    r"\b(pmbi|drug\s*code|batch|mfg|exp|mrp|manufactured|marketed|"
+    r"store|keep|warning|schedule)\b",
+    re.IGNORECASE,
+)
+
+
+def build_name_vocabulary(
+    medicines: list[dict[str, Any]],
+) -> set[str]:
+    vocabulary: set[str] = set()
+
+    for medicine in medicines:
+        for field in ("brand_name", "generic_name"):
+            for word in re.findall(
+                r"[a-z]{4,}",
+                str(medicine.get(field) or "").lower(),
+            ):
+                vocabulary.add(word)
+
+    return vocabulary
+
+
+def is_plausible_unmatched_line(
+    text: str,
+    vocabulary: set[str],
+) -> bool:
+    
+    if NOISE_LINE_RE.search(text):
+        return False
+
+    if extract_strengths(text):
+        return True
+
+    words = [
+        word
+        for word in re.findall(r"[a-z]{4,}", text.lower())
+    ]
+
+    if not words:
+        return False
+
+    for word in words:
+        best = process.extractOne(
+            word,
+            vocabulary,
+            scorer=fuzz.ratio,
+            score_cutoff=80,
+        )
+        if best:
+            return True
+
+    return False
+# PASTE 5: put this whole block in ocr-service/app/medicine_matcher.py
+# directly ABOVE the line:  def get_medication_region(
+# (after the blocks from PASTE 1 and PASTE 3)
+# REPLACE 1: in medicine_matcher.py, delete your whole existing
+# 'def merge_stacked_by_catalogue(...)' function and paste this one instead.
+
+def merge_stacked_by_catalogue(
+    items: list[dict[str, Any]],
+    medicines: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    A medicine name can wrap over two printed lines, e.g.
+        Amoxycillin and Potassium
+        Clavulanate Tablets IP (250 mg/ 125 mg)
+    Join two stacked lines only when the joined text matches the
+    catalogue and the lower line alone does not.
+    """
+    boxed = [item for item in items if _valid_box(item.get("box"))]
+    others = [item for item in items if not _valid_box(item.get("box"))]
+
+    boxed.sort(key=lambda item: (item["box"][1], item["box"][0]))
+
+    result: list[dict[str, Any]] = []
+    index = 0
+
+    while index < len(boxed):
+        current = boxed[index]
+
+        if index + 1 < len(boxed):
+            nxt = boxed[index + 1]
+            a_text = str(current.get("text", "")).strip()
+            b_text = str(nxt.get("text", "")).strip()
+            a_box = current["box"]
+            b_box = nxt["box"]
+
+            a_height = max(a_box[3] - a_box[1], 1)
+            b_height = max(b_box[3] - b_box[1], 1)
+            gap = b_box[1] - a_box[3]
+            overlap = min(a_box[2], b_box[2]) - max(a_box[0], b_box[0])
+            narrower = max(min(a_box[2] - a_box[0], b_box[2] - b_box[0]), 1)
+
+            stacked = (
+                -0.5 * a_height <= gap <= 1.2 * max(a_height, b_height)
+                and overlap >= 0.3 * narrower
+            )
+
+            if (
+                stacked
+                and re.search(r"[A-Za-z]{4,}", a_text)
+                and not extract_strengths(a_text)
+                and extract_strengths(b_text)
+                and not is_non_medicine_line(a_text)
+            ):
+                merged_text = _normalize_prescription_units(
+                    f"{a_text} {b_text}"
+                )
+                merged_item = {
+                    **current,
+                    "text": merged_text,
+                    "source_ocr_text": f"{a_text} | {b_text}",
+                    "confidence": round(
+                        min(
+                            float(current.get("confidence", 0) or 0),
+                            float(nxt.get("confidence", 0) or 0),
+                        ),
+                        4,
+                    ),
+                    "box": [
+                        min(a_box[0], b_box[0]),
+                        min(a_box[1], b_box[1]),
+                        max(a_box[2], b_box[2]),
+                        max(a_box[3], b_box[3]),
+                    ],
+                }
+
+                lower_only = find_matches([nxt], medicines)
+                lower_is_full_match = bool(lower_only) and not any(
+                    "Only part of the medicine name" in note
+                    for note in lower_only[0].get("notes", [])
+                )
+
+                if (
+                    find_matches([merged_item], medicines)
+                    and not lower_is_full_match
+                ):
+                    result.append(merged_item)
+                    index += 2
+                    continue
+
+        result.append(current)
+        index += 1
+
+    result.extend(others)
+    return result
+
+         
+
+    result.extend(others)
+    return result
 
 def get_medication_region(
 
@@ -2626,6 +2887,8 @@ def _score_candidate(
 # Find medicine candidates
 # =====================================================
 
+
+
 def find_matches(
     ocr_lines: list[dict[str, Any]],
     medicines: list[dict[str, Any]],
@@ -2662,6 +2925,41 @@ def find_matches(
             if score < MINIMUM_MATCH_SCORE:
                 continue
             scored.append((score, _form_rank(medicine), medicine))
+
+        # Only part of a combination name was read (for example just
+        # "Clavulanate ... (250 mg/ 125 mg)" from "Amoxycillin and
+        # Potassium Clavulanate ..."). Accept a combination product only
+        # when it contains the read ingredient(s), has exactly one
+        # ingredient per strength written, and carries ALL written
+        # strengths. The result still needs user confirmation.
+        if (
+            not scored
+            and len(resolution["strengths"]) >= 2
+            and len(resolution["ingredients"]) < len(resolution["strengths"])
+            and not resolution["brand"]
+        ):
+            wanted = _strength_values(resolution["strengths"])
+            for ingredient_set, group in index.by_ingredients.items():
+                if (
+                    len(ingredient_set) != len(resolution["strengths"])
+                    or not resolution["ingredients"] <= ingredient_set
+                ):
+                    continue
+                for medicine in group:
+                    if wanted <= _strength_values(_medicine_strengths(medicine)):
+                        scored.append(
+                            (
+                                round(MINIMUM_MATCH_SCORE + 3.0, 2),
+                                _form_rank(medicine),
+                                medicine,
+                            )
+                        )
+            if scored:
+                notes.append(
+                    "Only part of the medicine name could be read; this "
+                    "was matched using the ingredient and both strengths. "
+                    "Check the full name on the original prescription."
+                )
 
         scored.sort(key=lambda item: (-item[0], item[1]))
 
@@ -2716,6 +3014,11 @@ def find_matches(
 
     return matched_lines
 
+  
+
+
+
+
 
 # =====================================================
 
@@ -2746,6 +3049,16 @@ async def match_ocr_medicines(
         medication_region = merge_spatial_ocr_fragments(
             raw_medication_region
         )
+        medication_region = merge_stacked_continuation_lines(
+            medication_region
+        )
+        medication_region = merge_stacked_by_catalogue(
+            medication_region,
+            medicines,
+        )
+
+
+
 
 
 
@@ -2770,6 +3083,8 @@ async def match_ocr_medicines(
 
 
         unmatched_lines: list[dict[str, Any]] = []
+        name_vocabulary = build_name_vocabulary(medicines)
+
 
 
 
@@ -2804,6 +3119,12 @@ async def match_ocr_medicines(
             ):
 
                 continue
+            if not is_plausible_unmatched_line(
+                original_text,
+                name_vocabulary,
+            ):
+                continue
+
 
 
 

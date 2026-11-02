@@ -21,3 +21,8 @@ class MedicineModel(BaseDocument):
     manufacturer: str = Field(..., min_length=2, max_length=150)
     is_active: bool = Field(default=True)
     price_source: Optional[str] = None
+    # Official per-unit composition, e.g. "Aceclofenac — 100 mg per tablet; Paracetamol — 325 mg per tablet".
+    # Filled by scripts/import_composition.py; only verified entries are stored.
+    composition_text: Optional[str] = None
+    active_ingredients: list[str] = Field(default_factory=list)
+    composition_source: Optional[str] = None

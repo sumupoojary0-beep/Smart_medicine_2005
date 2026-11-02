@@ -158,7 +158,6 @@ function NearbyPharmacyCard({
   isSelected,
   onSelect,
   onViewDetails,
-  onReserve,
   onViewOnMap,
 }) {
 
@@ -317,10 +316,11 @@ function NearbyPharmacyList({
   selectedId,
   onSelect,
   onViewDetails,
-  onReserve,
+  onViewOnMap,
 }) {
   function handleViewOnMap(id) {
     onSelect?.(id)
+    onViewOnMap?.(id)
 
     document
       .getElementById('interactive-map-section')
@@ -364,7 +364,6 @@ function NearbyPharmacyList({
                 isSelected={pharmacy.id === selectedId}
                 onSelect={onSelect}
                 onViewDetails={onViewDetails}
-                onReserve={onReserve}
                 onViewOnMap={handleViewOnMap}
               />
             </div>

@@ -17,7 +17,6 @@ import PharmacySearchSummary from './sections/PharmacySearchSummary'
 import InteractiveMapSection from './sections/InteractiveMapSection'
 import NearbyPharmacyList from './sections/NearbyPharmacyList'
 import PharmacyDetailsPanel from './sections/PharmacyDetailsPanel'
-import PharmacyWorkflowTimeline from './sections/PharmacyWorkflowTimeline'
 import PharmacyTips from './sections/PharmacyTips'
 
 import HealthcareDisclaimer from '../medicine/sections/HealthcareDisclaimer'
@@ -43,6 +42,7 @@ const RANKING_LABELS = {
 // =====================================================
 
 function NearbyPharmaciesPage() {
+  const [mapFocus, setMapFocus] = useState(null) // set by the "Map" button on a card
   const [selectedId, setSelectedId] =
     useState(null)
 
@@ -192,15 +192,11 @@ function NearbyPharmaciesPage() {
           `~${Math.max(
             1,
             Math.round(distanceKm * 2),
-          )} min drive`,
+          )} min (approx.)`,
 
         phone: kendra.phone,
-        hours: 'Contact for hours',
-        isOpen: true,
         isJanAushadhi: true,
         availability,
-        rating: kendra.rating ?? 0,
-        ratingCount: 0,
         stock: kendra.stock ?? [],
 
         // Medicine and inventory information
@@ -338,6 +334,7 @@ function NearbyPharmaciesPage() {
       <InteractiveMapSection
         selectedPharmacyId={selectedId}
         onSelectPharmacy={setSelectedId}
+        focus={mapFocus}
         pharmacies={pharmacies}
         center={
           location
@@ -422,6 +419,7 @@ function NearbyPharmaciesPage() {
               onViewDetails={
                 handleViewDetails
               }
+              onViewOnMap={(id) => setMapFocus({ id, n: Date.now() })}
             />
           )}
 
@@ -438,8 +436,6 @@ function NearbyPharmaciesPage() {
           <PharmacyDetailsPanel
             pharmacyId={selectedId}
           />
-
-          <PharmacyWorkflowTimeline />
         </div>
       </div>
 

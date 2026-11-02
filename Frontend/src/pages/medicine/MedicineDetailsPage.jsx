@@ -95,6 +95,10 @@ function MedicineDetailsPage() {
       composition:
         medicineResponse.composition,
 
+      // Official per-unit composition from the PMBI list (only when verified)
+      compositionText:
+        medicineResponse.composition_text || '',
+
       strength: extractStrength(
         medicineResponse.composition
         || medicineResponse.generic_name,
