@@ -749,8 +749,7 @@ def looks_like_fallback_medicine_line(
 
 
 
-    if digit_count >= 6 and not extract_strengths(original):
-
+    if digit_count >= 6:
 
         return False
 
@@ -1423,7 +1422,8 @@ def build_name_vocabulary(
                 r"[a-z]{4,}",
                 str(medicine.get(field) or "").lower(),
             ):
-                vocabulary.add(word)
+                if word not in NOISE_WORDS:
+                    vocabulary.add(word)
 
     return vocabulary
 
@@ -1442,6 +1442,7 @@ def is_plausible_unmatched_line(
     words = [
         word
         for word in re.findall(r"[a-z]{4,}", text.lower())
+        if word not in NOISE_WORDS
     ]
 
     if not words:
@@ -1461,8 +1462,6 @@ def is_plausible_unmatched_line(
 # PASTE 5: put this whole block in ocr-service/app/medicine_matcher.py
 # directly ABOVE the line:  def get_medication_region(
 # (after the blocks from PASTE 1 and PASTE 3)
-# REPLACE 1: in medicine_matcher.py, delete your whole existing
-# 'def merge_stacked_by_catalogue(...)' function and paste this one instead.
 
 def merge_stacked_by_catalogue(
     items: list[dict[str, Any]],
@@ -1553,10 +1552,61 @@ def merge_stacked_by_catalogue(
     result.extend(others)
     return result
 
-         
+def add_name_lines_from_ocr(
+    region: list[dict[str, Any]],
+    ocr_lines: list[dict[str, Any]],
+    vocabulary: set[str],
+) -> list[dict[str, Any]]:
+    """
+    The medication-region filter can drop a name line that has no digit
+    or dosage word, e.g. "Mecobalamin Orally" printed above
+    "Disintegrating Strips 1500 mcg". Bring such a line back when one of
+    its words is very close to a catalogue medicine name.
+    """
+    known_texts = {
+        normalize_text(str(item.get("text", "")))
+        for item in region
+    }
+    known_boxes = {
+        tuple(item["box"])
+        for item in region
+        if _valid_box(item.get("box"))
+    }
 
-    result.extend(others)
-    return result
+    extra: list[dict[str, Any]] = []
+
+    for item in merge_spatial_ocr_fragments(ocr_lines):
+        text = str(item.get("text", "")).strip()
+        box = _valid_box(item.get("box"))
+
+        if not text or normalize_text(text) in known_texts:
+            continue
+
+        if box is not None and tuple(box) in known_boxes:
+            continue
+
+        if not should_check_line(text) or NOISE_LINE_RE.search(text):
+            continue
+
+        words = [
+            word
+            for word in re.findall(r"[a-z]{4,}", text.lower())
+            if word not in NOISE_WORDS
+        ]
+
+        if any(
+            process.extractOne(
+                word,
+                vocabulary,
+                scorer=fuzz.ratio,
+                score_cutoff=85,
+            )
+            for word in words
+        ):
+            extra.append(item)
+
+    return region + extra
+
 
 def get_medication_region(
 
@@ -2887,8 +2937,6 @@ def _score_candidate(
 # Find medicine candidates
 # =====================================================
 
-
-
 def find_matches(
     ocr_lines: list[dict[str, Any]],
     medicines: list[dict[str, Any]],
@@ -3014,11 +3062,6 @@ def find_matches(
 
     return matched_lines
 
-  
-
-
-
-
 
 # =====================================================
 
@@ -3048,6 +3091,12 @@ async def match_ocr_medicines(
 
         medication_region = merge_spatial_ocr_fragments(
             raw_medication_region
+        )
+        name_vocabulary = build_name_vocabulary(medicines)
+        medication_region = add_name_lines_from_ocr(
+            medication_region,
+            ocr_lines,
+            name_vocabulary,
         )
         medication_region = merge_stacked_continuation_lines(
             medication_region
@@ -3083,7 +3132,6 @@ async def match_ocr_medicines(
 
 
         unmatched_lines: list[dict[str, Any]] = []
-        name_vocabulary = build_name_vocabulary(medicines)
 
 
 

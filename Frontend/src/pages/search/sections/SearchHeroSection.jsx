@@ -16,9 +16,14 @@ import { ROUTES } from '../../../constants/routes'
 
 const rupee = (n) => `₹${Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
 
-const pill =
-  'inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-white/10 text-white text-sm font-medium ' +
-  'hover:bg-white/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400'
+const pillBase =
+  'inline-flex items-center gap-2.5 px-5 py-3 rounded-full text-base transition-all shadow-md ' +
+  'hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 ' +
+  'focus-visible:ring-offset-2 focus-visible:ring-offset-primary-800'
+// Light pill: voice. Saffron pill: the prescription scan (the main feature). Outline: nearby.
+const pillLight = `${pillBase} bg-white text-primary-800 font-semibold hover:bg-primary-50`
+const pillMain = `${pillBase} bg-accent-400 text-slate-900 font-bold hover:bg-accent-300`
+const pillOutline = `${pillBase} border-2 border-white/60 text-white font-semibold shadow-none hover:bg-white/15`
 
 const TAG_POSE = ['-rotate-2 translate-x-2', 'rotate-1 -translate-x-3', '-rotate-1 translate-x-4']
 
@@ -112,21 +117,21 @@ function SearchHeroSection({ query = '', onQueryChange, onSearch, suggestions = 
             {suggestions && <div className="absolute left-0 right-0 top-full mt-2 z-30 text-slate-900">{suggestions}</div>}
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-2">
-            <button type="button" onClick={() => setVoiceOpen(true)} className={pill}>
-              <HiOutlineMicrophone size={17} aria-hidden="true" /> Speak the name
-            </button>
-            <Link to={ROUTES.USER.PRESCRIPTION_SEARCH} className={pill}>
-              <HiOutlineCamera size={17} aria-hidden="true" /> Photo of a prescription
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link to={ROUTES.USER.PRESCRIPTION_SEARCH} className={pillMain}>
+              <HiOutlineCamera size={21} aria-hidden="true" /> Photo of a prescription
             </Link>
-            <Link to={ROUTES.USER.NEARBY_PHARMACIES} className={pill}>
-              <HiOutlineMapPin size={17} aria-hidden="true" /> Kendras near me
+            <button type="button" onClick={() => setVoiceOpen(true)} className={pillLight}>
+              <HiOutlineMicrophone size={21} aria-hidden="true" /> Speak the name
+            </button>
+            <Link to={ROUTES.USER.NEARBY_PHARMACIES} className={pillOutline}>
+              <HiOutlineMapPin size={21} aria-hidden="true" /> Kendras near me
             </Link>
           </div>
 
           {recent.length > 0 && (
-            <div className="mt-6 flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-white/60">You searched</span>
+            <div className="mt-7 flex flex-wrap items-center gap-2 text-[15px]">
+              <span className="text-white/75">You searched</span>
               {recent.slice(0, 4).map((q) => (
                 <span key={q} className="inline-flex items-center rounded-full border border-white/25">
                   <button type="button" onClick={() => onSearch?.(q)} className="pl-3 pr-1.5 py-1 text-white hover:text-accent-300">{q}</button>

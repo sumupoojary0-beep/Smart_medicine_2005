@@ -213,7 +213,7 @@ function ImportStockPage() {
   const [invoiceNo, setInvoiceNo] = useState('')
   const [invoiceDate, setInvoiceDate] = useState('')
   const [source, setSource] = useState('distributor')
-  const [useBillMrp, setUseBillMrp] = useState(false)
+  const [useBillMrp, setUseBillMrp] = useState(true)
   const [allowDuplicate, setAllowDuplicate] = useState(false)
   const [showDuplicateOption, setShowDuplicateOption] = useState(false)
   const [error, setError] = useState('')
@@ -330,10 +330,10 @@ function ImportStockPage() {
         if (row.manufacturer.trim()) payload.manufacturer = row.manufacturer.trim()
         if (row.mrp != null) payload.mrp = row.mrp
         if (row.purchaseRate != null) payload.purchase_rate = row.purchaseRate
-        if (row.sellPrice !== '' && Number(row.sellPrice) > 0) {
+        if (useBillMrp) {
+          if (row.mrp > 0) payload.selling_price = row.mrp
+        } else if (row.sellPrice !== '' && Number(row.sellPrice) > 0) {
           payload.selling_price = Number(row.sellPrice)
-        } else if (useBillMrp && row.mrp > 0) {
-          payload.selling_price = row.mrp
         }
         return payload
       }),
@@ -582,7 +582,7 @@ function ImportStockPage() {
               <>
                 <label className="mb-3 flex items-center gap-2 text-xs text-slate-700">
                   <input type="checkbox" checked={useBillMrp} onChange={(event) => setUseBillMrp(event.target.checked)} />
-                  Use the MRP printed on the bill as my selling price (otherwise the catalogue price is used)
+                  Sell at the MRP printed on the bill (rows with no readable MRP use the catalogue price). Untick to type your own selling price.
                 </label>
 
                 <div className="overflow-x-auto rounded-xl border border-slate-100">
@@ -596,7 +596,7 @@ function ImportStockPage() {
                         <th className="px-3 py-2 text-left">Expiry</th>
                         <th className="px-3 py-2 text-left w-20">Qty</th>
                         <th className="px-3 py-2 text-right">Bill MRP</th>
-                        <th className="px-3 py-2 text-left w-28">Sell at</th>
+                        {!useBillMrp && <th className="px-3 py-2 text-left w-28">Sell at</th>}
                         <th className="px-3 py-2 text-left">Status</th>
                       </tr>
                     </thead>
@@ -659,17 +659,19 @@ function ImportStockPage() {
                             <td className="px-3 py-2 text-right text-xs text-slate-600 whitespace-nowrap">
                               {row.mrp != null ? `₹${Number(row.mrp).toFixed(2)}` : '—'}
                             </td>
-                            <td className="px-3 py-2">
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                aria-label={`Selling price for ${row.itemName}`}
-                                value={row.sellPrice}
-                                placeholder="auto"
-                                onChange={(event) => updateRow(row.key, { sellPrice: event.target.value.replace(/[^\d.]/g, '') })}
-                                className={`${FIELD} w-24`}
-                              />
-                            </td>
+                            {!useBillMrp && (
+                              <td className="px-3 py-2">
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  aria-label={`Selling price for ${row.itemName}`}
+                                  value={row.sellPrice}
+                                  placeholder="auto"
+                                  onChange={(event) => updateRow(row.key, { sellPrice: event.target.value.replace(/[^\d.]/g, '') })}
+                                  className={`${FIELD} w-24`}
+                                />
+                              </td>
+                            )}
                             <td className="px-3 py-2 text-xs min-w-[170px]">
                               <Badge variant={errors.length && row.include ? 'danger' : badge.variant} size="sm">
                                 {errors.length && row.include ? 'Fix this row' : badge.label}

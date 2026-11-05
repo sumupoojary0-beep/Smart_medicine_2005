@@ -55,7 +55,7 @@ function PasswordStrength({ password = '' }) {
           return (
             <li
               key={c.label}
-              className={`flex items-center gap-1.5 text-[11px] ${met ? 'text-success-600' : 'text-slate-400'}`}
+              className={`flex items-center gap-1.5 text-[13px] ${met ? 'text-success-600' : 'text-slate-400'}`}
             >
               <span aria-hidden="true">{met ? '✓' : '○'}</span>
               {c.label}

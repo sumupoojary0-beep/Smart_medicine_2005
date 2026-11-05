@@ -100,7 +100,7 @@ function ExploreCard({ card, onDemo }) {
           <p className="text-sm font-bold text-slate-900">
             {card.emoji} {card.label}
           </p>
-          <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">
+          <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">
             Explore
           </p>
         </div>
@@ -153,7 +153,7 @@ function ExploreDemoSection({ onDemo }) {
       {/* TODO: Remove this entire ExploreDemoSection before production deployment.
                 Replace loginAsDemo() with real authService.login() when FastAPI
                 backend is integrated. Demo sessions are NOT real authenticated sessions. */}
-      <p className="text-center text-[10px] text-slate-400 mt-4 leading-relaxed">
+      <p className="text-center text-xs text-slate-400 mt-4 leading-relaxed">
         🔒 Demo access is available only for development and project
         demonstration purposes. Not for production use.
       </p>

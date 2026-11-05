@@ -70,6 +70,7 @@ function Button({
   rightIcon,
   type = 'button',
   className = '',
+  as: Component = 'button',
   children,
   ...rest
 }) {
@@ -86,10 +87,16 @@ function Button({
     .filter(Boolean)
     .join(' ')
 
+  const isButton = Component === 'button'
+  const extra = isButton
+    ? { type, disabled: isDisabled }
+    : isDisabled
+      ? { tabIndex: -1 }
+      : {}
+
   return (
-    <button
-      type={type}
-      disabled={isDisabled}
+    <Component
+      {...extra}
       aria-disabled={isDisabled}
       aria-busy={loading}
       className={classes}
@@ -104,7 +111,7 @@ function Button({
       {!loading && rightIcon && (
         <span className="shrink-0">{rightIcon}</span>
       )}
-    </button>
+    </Component>
   )
 }
 

@@ -36,11 +36,11 @@ import { useTheme } from '../../contexts/ThemeContext'
 
 // ── Nav link base styles ────────────────────────────────────────────────────
 const LINK_BASE =
-  'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium ' +
+  'flex items-center gap-2 px-3.5 py-2 rounded-md text-[15px] font-medium ' +
   'transition-colors duration-150 focus-visible:outline-none ' +
   'focus-visible:ring-2 focus-visible:ring-primary-500'
 
-const LINK_IDLE   = 'text-slate-600 hover:text-primary-700 hover:bg-primary-50'
+const LINK_IDLE   = 'text-slate-700 hover:text-primary-700 hover:bg-primary-50'
 const LINK_ACTIVE = 'text-primary-700 bg-primary-50 font-semibold'
 
 const MOBILE_LINK_BASE =

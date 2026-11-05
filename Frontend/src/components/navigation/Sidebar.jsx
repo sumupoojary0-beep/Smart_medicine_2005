@@ -43,10 +43,10 @@ import { ROUTES } from '../../constants/routes'
 
 // ── Shared style strings ───────────────────────────────────────────────────────
 const ITEM_BASE =
-  'group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium ' +
+  'group flex items-center gap-3 px-3 py-2.5 rounded-lg text-[15px] font-medium ' +
   'transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 ' +
   'focus-visible:ring-accent-400 w-full text-left'
-const ITEM_IDLE   = 'text-white/75 hover:bg-white/10 hover:text-white'
+const ITEM_IDLE   = 'text-white/90 hover:bg-white/10 hover:text-white'
 const ITEM_ACTIVE = 'bg-white/15 text-white font-semibold shadow-[inset_3px_0_0_0_var(--color-accent-400)]'
 
 // ── Sub-item ─────────────────────────────────────────────────────────────────

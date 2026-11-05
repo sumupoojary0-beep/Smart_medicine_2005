@@ -496,6 +496,12 @@ def looks_like_header(text: str) -> bool:
     return len(kinds) >= 3 and ("batch" in kinds or "expiry" in kinds) and bool({"qty", "mrp", "rate", "amount"} & kinds)
 
 
+UNIT_WORDS = re.compile(
+    r"(?i)\b(?:strips?|nos?\.?|pcs?\.?|tabs?|caps?|boxes|box|vials?|btl|bottles?|pkts?|packs?)\b"
+    r"\s*(?:\(\s*(\d{1,4})\s*['\u2019`]?\s*s?\s*\))?"
+)
+
+
 def parse_text_row(text: str, layout: Optional[list[str]], line_no: int) -> Optional[dict]:
     """One printed bill line -> common row.  None when the line is not an item line."""
     found = find_expiry_in_text(text)
@@ -503,6 +509,19 @@ def parse_text_row(text: str, layout: Optional[list[str]], line_no: int) -> Opti
         return None
     start, end, expiry = found
     left, right = text[:start].strip(), text[end:].strip()
+
+    # Some bills print BOTH a manufacturing and an expiry date ("Jan-2026 Dec-2028").
+    # The first date found is then the manufacturing date; the expiry is the date
+    # that follows it directly.
+    second = EXPIRY_IN_TEXT.match(right)
+    if second:
+        second_date = parse_expiry(second.group(1))
+        if second_date and second_date >= expiry:
+            expiry = second_date
+            right = right[second.end(1):].strip()
+
+    # Unit column: "Strips (10's)" -> "10's", "Strip" -> nothing
+    right = UNIT_WORDS.sub(lambda m: f" {m.group(1)}'s " if m.group(1) else " ", right).strip()
 
     layout = layout or []
     after_expiry_first = (

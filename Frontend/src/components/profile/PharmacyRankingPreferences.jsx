@@ -145,7 +145,7 @@ function PreferencesForm({ initial, loadFailed }) {
         <HiOutlineAdjustmentsHorizontal size={15} className="text-primary-600" aria-hidden="true" />
         Best-Pharmacy Preferences
       </h2>
-      <p className="text-[11px] text-slate-500 mb-4">
+      <p className="text-[13px] text-slate-500 mb-4">
         Choose what matters most to you. We use this every time you look for a medicine, so the best Kendra for you comes first.
       </p>
 
@@ -194,12 +194,12 @@ function PreferencesForm({ initial, loadFailed }) {
               className="w-full accent-primary-600"
               aria-describedby={`pref-${key}-hint`}
             />
-            <p id={`pref-${key}-hint`} className="text-[10px] text-slate-400">{hint}</p>
+            <p id={`pref-${key}-hint`} className="text-xs text-slate-400">{hint}</p>
           </div>
         ))}
       </div>
 
-      <p className="text-[11px] text-slate-500 mt-3">
+      <p className="text-[13px] text-slate-500 mt-3">
         Total: <span className="font-bold text-slate-700">{total}%</span>. Moving one slider automatically adjusts the others so the total stays 100%.
       </p>
 

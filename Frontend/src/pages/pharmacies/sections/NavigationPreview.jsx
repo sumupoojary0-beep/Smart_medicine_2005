@@ -38,10 +38,6 @@ function NavigationPreview({ pharmacy = {} }) {
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
-  function handleOpenNavigation() {
-    // TODO: in-app navigation using React Leaflet Routing Machine
-  }
-
   return (
     <section aria-labelledby="navigation-heading">
       <div className="bg-white rounded-2xl border border-secondary-200 shadow-sm p-5">
@@ -85,18 +81,6 @@ function NavigationPreview({ pharmacy = {} }) {
           >
             <HiOutlineArrowTopRightOnSquare size={15} aria-hidden="true" />
             Open in Google Maps
-          </button>
-
-          <button
-            type="button"
-            onClick={handleOpenNavigation}
-            aria-label="Open in-app navigation"
-            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-secondary-300 text-secondary-700 text-sm font-medium hover:bg-secondary-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary-500"
-          >
-            <HiOutlineMapPin size={15} aria-hidden="true" />
-            Navigate (In-App)
-            {/* TODO: React Leaflet Routing Machine in Module 10+ */}
-            <span className="text-[10px] text-slate-400">(coming soon)</span>
           </button>
         </div>
       </div>

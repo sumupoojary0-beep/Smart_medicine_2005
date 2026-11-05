@@ -71,12 +71,12 @@ function NotificationCard({ notification = {}, onRead, onClick }) {
         )}
 
         <div className="flex items-center justify-between mt-2">
-          <span className="text-[10px] text-slate-400">{time}</span>
+          <span className="text-xs text-slate-400">{time}</span>
           {!isRead && onRead && (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onRead() }}
-              className="text-[10px] font-medium text-primary-600 hover:text-primary-700 hover:underline focus-visible:outline-none"
+              className="text-xs font-medium text-primary-600 hover:text-primary-700 hover:underline focus-visible:outline-none"
             >
               Mark as read
             </button>

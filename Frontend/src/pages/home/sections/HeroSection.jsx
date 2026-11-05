@@ -78,31 +78,35 @@ function HeroSection() {
             <button
               type="button"
               onClick={() => setVoiceOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-white/25 px-3.5 py-1.5 text-sm text-white hover:bg-white/10"
+              className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-base font-semibold text-primary-800 shadow-md transition-all hover:-translate-y-0.5 hover:bg-primary-50"
             >
-              <HiOutlineMicrophone size={16} aria-hidden="true" />
+              <HiOutlineMicrophone size={20} aria-hidden="true" />
               Voice
             </button>
             {tools.map(({ label, icon: Icon, to }) => (
               <Link
                 key={label}
                 to={to}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/25 px-3.5 py-1.5 text-sm text-white hover:bg-white/10"
+                className={
+                  to === ROUTES.USER.PRESCRIPTION_SEARCH
+                    ? 'inline-flex items-center gap-2 rounded-full bg-accent-400 px-5 py-2.5 text-base font-bold text-slate-900 shadow-md transition-all hover:-translate-y-0.5 hover:bg-accent-300'
+                    : 'inline-flex items-center gap-2 rounded-full border-2 border-white/60 px-5 py-2.5 text-base font-semibold text-white transition-all hover:bg-white/15'
+                }
               >
-                <Icon size={16} aria-hidden="true" />
+                <Icon size={20} aria-hidden="true" />
                 {label}
               </Link>
             ))}
           </div>
 
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-sm">
-            <span className="text-white/60">Popular:</span>
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-2 text-[15px]">
+            <span className="text-white/75">Popular:</span>
             {POPULAR_SEARCHES.map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => go(t)}
-                className="rounded-full bg-white/10 px-3 py-1 text-white/90 hover:bg-accent-400 hover:text-primary-900"
+                className="rounded-full bg-white/15 px-3.5 py-1.5 text-white hover:bg-accent-400 hover:text-primary-900"
               >
                 {t}
               </button>
@@ -118,9 +122,9 @@ function HeroSection() {
             ))}
           </ul>
 
-          <p className="mt-6 text-xs text-white/50">
+          <p className="mt-6 text-sm text-white/75">
             Independent project; not an official Government of India website.{' '}
-            <Link to={ROUTES.REGISTER} className="underline hover:text-white">Create a free account</Link> to save medicines and set your ranking preferences.
+            <Link to={ROUTES.REGISTER} className="font-semibold text-accent-300 underline hover:text-white">Create a free account</Link> to save medicines and set your ranking preferences.
           </p>
         </div>
       </div>
